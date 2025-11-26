@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZenCode | Precision Editor</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ext-language_tools.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --surface-color: #ffffff;
+            --text-color: #212529;
+            --border-color: #e9ecef;
+            --accent-color: #2d3436;
+            --primary-btn: #2d3436;
+            --primary-btn-text: #ffffff;
+            --toolbar-height: 60px;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1b1e;
+            --surface-color: #25262b;
+            --text-color: #e9ecef;
+            --border-color: #2c2e33;
+            --accent-color: #f8f9fa;
+            --primary-btn: #e9ecef;
+            --primary-btn-text: #1a1b1e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        #editor-container {
+            flex: 1;
+            position: relative;
+            width: 100%;
+        }
+
+        #editor {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .toolbar {
+            height: var(--toolbar-height);
+            background-color: var(--surface-color);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 10px;
+            z-index: 10;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+
+        .tool-btn {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            padding: 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s, background-color 0.2s;
+        }
+
+        .tool-btn:active {
+            transform: scale(0.95);
+            background-color: var(--border-color);
+        }
+
+        .tool-btn i {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 2px;
+        }
+
+        .tool-btn span {
+            font-size: 10px;
+            font-weight: 600;
+            opacity: 0.7;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(2px);
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal {
+            background: var(--surface-color);
+            width: 100%;
+            max-width: 600px;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .setting-item {
+            margin-bottom: 20px;
+        }
+
+        .setting-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Fira Code', monospace;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .text-input:focus {
+            border-color: var(--accent-color);
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            background: var(--primary-btn);
+            color: var(--primary-btn-text);
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .action-btn:active {
+            opacity: 0.9;
+        }
+
+        input[type=range] {
+            width: 100%;
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--text-color);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .theme-switch {
+            display: flex;
+            background: var(--border-color);
+            padding: 4px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .theme-option {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            border-radius: 16px;
+            font-size: 0.9rem;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .theme-option.active {
+            background: var(--surface-color);
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .file-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--accent-color);
+            color: var(--bg-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            opacity: 0.6;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .ace_support.ace_function { color: #d19a66 !important; }
+        .ace-tm .ace_support.ace_function { color: #800080 !important; }
+
+        .ace_editor.ace_autocomplete {
+            width: 80% !important;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .ace_snippet-marker,
+        .ace_marker-layer .ace_placeholder {
+            display: none !important;
+            background: transparent !important;
+            border: none !important;
+            opacity: 0 !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="editor-container">
+        <div class="file-info" id="file-info">Unsaved File</div>
+        <div id="editor"># ZenCode - Precision First.</div>
+    </div>
+
+    <div class="toolbar">
+        <button class="tool-btn" onclick="triggerFileOpen()">
+            <i data-lucide="folder-open"></i>
+            <span>Open</span>
+        </button>
+
+        <button class="tool-btn" onclick="openSaveModal()">
+            <i data-lucide="download"></i>
+            <span>Save As</span>
+        </button>
+
+        <button class="tool-btn" onclick="insertTab()">
+            <i data-lucide="arrow-right-to-line"></i>
+            <span>Tab</span>
+        </button>
+
+        <button class="tool-btn" onclick="toggleSettings()">
+            <i data-lucide="settings-2"></i>
+            <span>Settings</span>
+        </button>
+    </div>
+
+    <input type="file" id="file-input" style="display: none;" onchange="handleFileOpen(this)">
+
+    <div class="modal-overlay" id="settings-overlay" onclick="closeModal(event, 'settings-overlay')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title">Editor Settings</div>
+                <button class="tool-btn" onclick="toggleSettings()" style="padding: 5px;">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">Theme Mode</span>
+                <div class="theme-switch">
+                    <div class="theme-option active" onclick="setTheme('light')" id="theme-light">Light</div>
+                    <div class="theme-option" onclick="setTheme('dark')" id="theme-dark">Dark</div>
+                </div>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">Font Size: <span id="font-size-val">14px</span></span>
+                <input type="range" class="setting-control" min="10" max="24" value="14" id="font-range" oninput="setFontSize(this.value)">
+            </div>
+            <div class="setting-item" style="margin-top: 30px; text-align: center; opacity: 0.5; font-size: 0.8rem;">
+                ZenCode v4.0 • Ultimate
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="save-overlay" onclick="closeModal(event, 'save-overlay')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title">Save File</div>
+                <button class="tool-btn" onclick="toggleSave()" style="padding: 5px;">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">Filename</span>
+                <input type="text" id="filename-input" class="text-input" value="script.py" spellcheck="false">
+            </div>
+            <button class="action-btn" onclick="executeSave()">Download</button>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const pythonMethods = [
+            { name: "capitalize", snippet: "capitalize()", score: 900, meta: "str" },
+            { name: "casefold", snippet: "casefold()", score: 900, meta: "str" },
+            { name: "center", snippet: "center(${1:width}, ${2:fillchar})", score: 900, meta: "str" },
+            { name: "count", snippet: "count(${1:sub}, ${2:start}, ${3:end})", score: 1000, meta: "str/list" },
+            { name: "encode", snippet: "encode(encoding='${1:utf-8}', errors='${2:strict}')", score: 900, meta: "str" },
+            { name: "endswith", snippet: "endswith(${1:suffix})", score: 1000, meta: "str" },
+            { name: "expandtabs", snippet: "expandtabs(${1:tabsize})", score: 900, meta: "str" },
+            { name: "find", snippet: "find(${1:sub})", score: 1000, meta: "str" },
+            { name: "format", snippet: "format(${1})", score: 1100, meta: "str" },
+            { name: "format_map", snippet: "format_map(${1:mapping})", score: 900, meta: "str" },
+            { name: "index", snippet: "index(${1:sub})", score: 1000, meta: "str/list" },
+            { name: "isalnum", snippet: "isalnum()", score: 900, meta: "str" },
+            { name: "isalpha", snippet: "isalpha()", score: 900, meta: "str" },
+            { name: "isascii", snippet: "isascii()", score: 900, meta: "str" },
+            { name: "isdecimal", snippet: "isdecimal()", score: 900, meta: "str" },
+            { name: "isdigit", snippet: "isdigit()", score: 950, meta: "str" },
+            { name: "isidentifier", snippet: "isidentifier()", score: 900, meta: "str" },
+            { name: "islower", snippet: "islower()", score: 900, meta: "str" },
+            { name: "isnumeric", snippet: "isnumeric()", score: 900, meta: "str" },
+            { name: "isprintable", snippet: "isprintable()", score: 900, meta: "str" },
+            { name: "isspace", snippet: "isspace()", score: 900, meta: "str" },
+            { name: "istitle", snippet: "istitle()", score: 900, meta: "str" },
+            { name: "isupper", snippet: "isupper()", score: 900, meta: "str" },
+            { name: "join", snippet: "join(${1:iterable})", score: 1100, meta: "str" },
+            { name: "ljust", snippet: "ljust(${1:width}, ${2:fillchar})", score: 900, meta: "str" },
+            { name: "lower", snippet: "lower()", score: 1000, meta: "str" },
+            { name: "lstrip", snippet: "lstrip(${1:chars})", score: 1000, meta: "str" },
+            { name: "maketrans", snippet: "maketrans(${1:x}, ${2:y}, ${3:z})", score: 900, meta: "str" },
+            { name: "partition", snippet: "partition(${1:sep})", score: 900, meta: "str" },
+            { name: "replace", snippet: "replace(${1:old}, ${2:new}, ${3:count})", score: 1100, meta: "str" },
+            { name: "rfind", snippet: "rfind(${1:sub})", score: 900, meta: "str" },
+            { name: "rindex", snippet: "rindex(${1:sub})", score: 900, meta: "str" },
+            { name: "rjust", snippet: "rjust(${1:width}, ${2:fillchar})", score: 900, meta: "str" },
+            { name: "rpartition", snippet: "rpartition(${1:sep})", score: 900, meta: "str" },
+            { name: "rsplit", snippet: "rsplit(${1:sep}, ${2:maxsplit})", score: 900, meta: "str" },
+            { name: "rstrip", snippet: "rstrip(${1:chars})", score: 1000, meta: "str" },
+            { name: "split", snippet: "split(${1:sep})", score: 1100, meta: "str" },
+            { name: "splitlines", snippet: "splitlines(${1:keepends})", score: 900, meta: "str" },
+            { name: "startswith", snippet: "startswith(${1:prefix})", score: 1000, meta: "str" },
+            { name: "strip", snippet: "strip(${1:chars})", score: 1100, meta: "str" },
+            { name: "swapcase", snippet: "swapcase()", score: 900, meta: "str" },
+            { name: "title", snippet: "title()", score: 900, meta: "str" },
+            { name: "translate", snippet: "translate(${1:table})", score: 900, meta: "str" },
+            { name: "upper", snippet: "upper()", score: 1000, meta: "str" },
+            { name: "zfill", snippet: "zfill(${1:width})", score: 900, meta: "str" },
+            { name: "append", snippet: "append(${1:object})", score: 1200, meta: "list" },
+            { name: "clear", snippet: "clear()", score: 1000, meta: "list/dict/set" },
+            { name: "copy", snippet: "copy()", score: 1000, meta: "list/dict/set" },
+            { name: "extend", snippet: "extend(${1:iterable})", score: 1100, meta: "list" },
+            { name: "insert", snippet: "insert(${1:index}, ${2:object})", score: 1000, meta: "list" },
+            { name: "pop", snippet: "pop(${1:index})", score: 1100, meta: "list/dict" },
+            { name: "remove", snippet: "remove(${1:value})", score: 1100, meta: "list/set" },
+            { name: "reverse", snippet: "reverse()", score: 1000, meta: "list" },
+            { name: "sort", snippet: "sort(key=${1:None}, reverse=${2:False})", score: 1100, meta: "list" },
+            { name: "fromkeys", snippet: "fromkeys(${1:iterable}, ${2:value})", score: 900, meta: "dict" },
+            { name: "get", snippet: "get(${1:key}, ${2:default})", score: 1200, meta: "dict" },
+            { name: "items", snippet: "items()", score: 1200, meta: "dict" },
+            { name: "keys", snippet: "keys()", score: 1200, meta: "dict" },
+            { name: "popitem", snippet: "popitem()", score: 900, meta: "dict" },
+            { name: "setdefault", snippet: "setdefault(${1:key}, ${2:default})", score: 1000, meta: "dict" },
+            { name: "update", snippet: "update(${1:other})", score: 1100, meta: "dict" },
+            { name: "values", snippet: "values()", score: 1200, meta: "dict" },
+            { name: "add", snippet: "add(${1:elem})", score: 1100, meta: "set" },
+            { name: "difference", snippet: "difference(${1:other})", score: 900, meta: "set" },
+            { name: "difference_update", snippet: "difference_update(${1:other})", score: 900, meta: "set" },
+            { name: "discard", snippet: "discard(${1:elem})", score: 900, meta: "set" },
+            { name: "intersection", snippet: "intersection(${1:other})", score: 900, meta: "set" },
+            { name: "intersection_update", snippet: "intersection_update(${1:other})", score: 900, meta: "set" },
+            { name: "isdisjoint", snippet: "isdisjoint(${1:other})", score: 900, meta: "set" },
+            { name: "issubset", snippet: "issubset(${1:other})", score: 900, meta: "set" },
+            { name: "issuperset", snippet: "issuperset(${1:other})", score: 900, meta: "set" },
+            { name: "symmetric_difference", snippet: "symmetric_difference(${1:other})", score: 900, meta: "set" },
+            { name: "symmetric_difference_update", snippet: "symmetric_difference_update(${1:other})", score: 900, meta: "set" },
+            { name: "union", snippet: "union(${1:other})", score: 1000, meta: "set" }
+        ];
+
+        const pythonFunctions = [
+            { name: "def", snippet: "def ${1:fname}(${2:args}):\n\t${3:pass}", score: 2000, meta: "keyword" },
+            { name: "class", snippet: "class ${1:ClassName}:\n\tdef __init__(self, ${2:args}):\n\t\t${3:pass}", score: 2000, meta: "keyword" },
+            { name: "if", snippet: "if ${1:condition}:\n\t${2:pass}", score: 2000, meta: "keyword" },
+            { name: "elif", snippet: "elif ${1:condition}:\n\t${2:pass}", score: 1900, meta: "keyword" },
+            { name: "else", snippet: "else:\n\t${1:pass}", score: 1900, meta: "keyword" },
+            { name: "for", snippet: "for ${1:item} in ${2:iterable}:\n\t${3:pass}", score: 2000, meta: "keyword" },
+            { name: "while", snippet: "while ${1:condition}:\n\t${2:pass}", score: 2000, meta: "keyword" },
+            { name: "try", snippet: "try:\n\t${1:pass}\nexcept ${2:Exception} as ${3:e}:\n\t${4:print(e)}", score: 2000, meta: "keyword" },
+            { name: "except", snippet: "except ${1:Exception} as ${2:e}:\n\t${3:pass}", score: 1900, meta: "keyword" },
+            { name: "finally", snippet: "finally:\n\t${1:pass}", score: 1800, meta: "keyword" },
+            { name: "with", snippet: "with open('${1:file}') as ${2:f}:\n\t${3:pass}", score: 1900, meta: "keyword" },
+            { name: "import", snippet: "import ${1:module}", score: 2000, meta: "keyword" },
+            { name: "from", snippet: "from ${1:module} import ${2:name}", score: 2000, meta: "keyword" },
+            { name: "return", snippet: "return ${1:value}", score: 2000, meta: "keyword" },
+            { name: "lambda", snippet: "lambda ${1:args}: ${2:expr}", score: 1800, meta: "keyword" },
+            { name: "yield", snippet: "yield ${1:value}", score: 1800, meta: "keyword" },
+            { name: "async", snippet: "async def ${1:fname}(${2:args}):\n\t${3:pass}", score: 1800, meta: "keyword" },
+            { name: "await", snippet: "await ${1:coroutine}", score: 1800, meta: "keyword" },
+            { name: "pass", snippet: "pass", score: 1500, meta: "keyword" },
+            { name: "break", snippet: "break", score: 1500, meta: "keyword" },
+            { name: "continue", snippet: "continue", score: 1500, meta: "keyword" },
+            { name: "global", snippet: "global ${1:var}", score: 1500, meta: "keyword" },
+            { name: "nonlocal", snippet: "nonlocal ${1:var}", score: 1500, meta: "keyword" },
+            { name: "del", snippet: "del ${1:obj}", score: 1500, meta: "keyword" },
+            { name: "assert", snippet: "assert ${1:condition}, '${2:message}'", score: 1500, meta: "keyword" },
+            { name: "raise", snippet: "raise ${1:Exception}('${2:msg}')", score: 1500, meta: "keyword" },
+            { name: "in", snippet: "in ", score: 1200, meta: "keyword" },
+            { name: "is", snippet: "is ", score: 1200, meta: "keyword" },
+            { name: "not", snippet: "not ", score: 1200, meta: "keyword" },
+            { name: "and", snippet: "and ", score: 1200, meta: "keyword" },
+            { name: "or", snippet: "or ", score: 1200, meta: "keyword" },
+            { name: "True", snippet: "True", score: 1200, meta: "bool" },
+            { name: "False", snippet: "False", score: 1200, meta: "bool" },
+            { name: "None", snippet: "None", score: 1200, meta: "val" },
+            { name: "self", snippet: "self", score: 1500, meta: "var" },
+            { name: "print", snippet: "print(${1:object})", score: 1500, meta: "func" },
+            { name: "len", snippet: "len(${1:object})", score: 1500, meta: "func" },
+            { name: "range", snippet: "range(${1:start}, ${2:stop}, ${3:step})", score: 1500, meta: "func" },
+            { name: "input", snippet: "input('${1:prompt}')", score: 1500, meta: "func" },
+            { name: "open", snippet: "open('${1:file}', '${2:r}')", score: 1500, meta: "func" },
+            { name: "str", snippet: "str(${1:object})", score: 1400, meta: "type" },
+            { name: "int", snippet: "int(${1:x})", score: 1400, meta: "type" },
+            { name: "float", snippet: "float(${1:x})", score: 1400, meta: "type" },
+            { name: "list", snippet: "list(${1:iterable})", score: 1400, meta: "type" },
+            { name: "dict", snippet: "dict(${1:key}=${2:value})", score: 1400, meta: "type" },
+            { name: "set", snippet: "set(${1:iterable})", score: 1400, meta: "type" },
+            { name: "tuple", snippet: "tuple(${1:iterable})", score: 1400, meta: "type" },
+            { name: "bool", snippet: "bool(${1:x})", score: 1400, meta: "type" },
+            { name: "type", snippet: "type(${1:object})", score: 1400, meta: "func" },
+            { name: "abs", snippet: "abs(${1:x})", score: 1300, meta: "func" },
+            { name: "all", snippet: "all(${1:iterable})", score: 1300, meta: "func" },
+            { name: "any", snippet: "any(${1:iterable})", score: 1300, meta: "func" },
+            { name: "bin", snippet: "bin(${1:x})", score: 1200, meta: "func" },
+            { name: "chr", snippet: "chr(${1:i})", score: 1200, meta: "func" },
+            { name: "dir", snippet: "dir(${1:object})", score: 1300, meta: "func" },
+            { name: "divmod", snippet: "divmod(${1:a}, ${2:b})", score: 1200, meta: "func" },
+            { name: "enumerate", snippet: "enumerate(${1:iterable})", score: 1400, meta: "func" },
+            { name: "eval", snippet: "eval(${1:expression})", score: 1100, meta: "func" },
+            { name: "exec", snippet: "exec(${1:object})", score: 1100, meta: "func" },
+            { name: "filter", snippet: "filter(${1:function}, ${2:iterable})", score: 1300, meta: "func" },
+            { name: "format", snippet: "format(${1:value}, '${2:format_spec}')", score: 1200, meta: "func" },
+            { name: "getattr", snippet: "getattr(${1:obj}, '${2:name}')", score: 1200, meta: "func" },
+            { name: "globals", snippet: "globals()", score: 1100, meta: "func" },
+            { name: "hasattr", snippet: "hasattr(${1:obj}, '${2:name}')", score: 1200, meta: "func" },
+            { name: "hash", snippet: "hash(${1:object})", score: 1100, meta: "func" },
+            { name: "help", snippet: "help(${1:object})", score: 1100, meta: "func" },
+            { name: "hex", snippet: "hex(${1:x})", score: 1200, meta: "func" },
+            { name: "id", snippet: "id(${1:object})", score: 1100, meta: "func" },
+            { name: "isinstance", snippet: "isinstance(${1:obj}, ${2:class})", score: 1400, meta: "func" },
+            { name: "issubclass", snippet: "issubclass(${1:cls}, ${2:class})", score: 1200, meta: "func" },
+            { name: "iter", snippet: "iter(${1:object})", score: 1200, meta: "func" },
+            { name: "locals", snippet: "locals()", score: 1100, meta: "func" },
+            { name: "map", snippet: "map(${1:function}, ${2:iterable})", score: 1300, meta: "func" },
+            { name: "max", snippet: "max(${1:iterable})", score: 1400, meta: "func" },
+            { name: "min", snippet: "min(${1:iterable})", score: 1400, meta: "func" },
+            { name: "next", snippet: "next(${1:iterator})", score: 1200, meta: "func" },
+            { name: "oct", snippet: "oct(${1:x})", score: 1100, meta: "func" },
+            { name: "ord", snippet: "ord(${1:c})", score: 1200, meta: "func" },
+            { name: "pow", snippet: "pow(${1:base}, ${2:exp})", score: 1300, meta: "func" },
+            { name: "repr", snippet: "repr(${1:object})", score: 1200, meta: "func" },
+            { name: "reversed", snippet: "reversed(${1:seq})", score: 1300, meta: "func" },
+            { name: "round", snippet: "round(${1:number}, ${2:ndigits})", score: 1400, meta: "func" },
+            { name: "setattr", snippet: "setattr(${1:obj}, '${2:name}', ${3:value})", score: 1100, meta: "func" },
+            { name: "slice", snippet: "slice(${1:start}, ${2:stop}, ${3:step})", score: 1000, meta: "func" },
+            { name: "sorted", snippet: "sorted(${1:iterable}, key=${2:None}, reverse=${3:False})", score: 1400, meta: "func" },
+            { name: "sum", snippet: "sum(${1:iterable})", score: 1400, meta: "func" },
+            { name: "super", snippet: "super()", score: 1400, meta: "func" },
+            { name: "zip", snippet: "zip(${1:iter1}, ${2:iter2})", score: 1400, meta: "func" },
+            { name: "math", snippet: "math", score: 1200, meta: "module" },
+            { name: "math.sqrt", snippet: "math.sqrt(${1:x})", score: 1100, meta: "math" },
+            { name: "math.pi", snippet: "math.pi", score: 1100, meta: "math" },
+            { name: "math.ceil", snippet: "math.ceil(${1:x})", score: 1000, meta: "math" },
+            { name: "math.floor", snippet: "math.floor(${1:x})", score: 1000, meta: "math" },
+            { name: "math.sin", snippet: "math.sin(${1:x})", score: 1000, meta: "math" },
+            { name: "math.cos", snippet: "math.cos(${1:x})", score: 1000, meta: "math" },
+            { name: "random", snippet: "random", score: 1200, meta: "module" },
+            { name: "random.randint", snippet: "random.randint(${1:a}, ${2:b})", score: 1100, meta: "random" },
+            { name: "random.choice", snippet: "random.choice(${1:seq})", score: 1100, meta: "random" },
+            { name: "random.shuffle", snippet: "random.shuffle(${1:seq})", score: 1100, meta: "random" },
+            { name: "random.random", snippet: "random.random()", score: 1100, meta: "random" },
+            { name: "datetime", snippet: "datetime", score: 1200, meta: "module" },
+            { name: "datetime.now", snippet: "datetime.datetime.now()", score: 1100, meta: "datetime" },
+            { name: "time", snippet: "time", score: 1200, meta: "module" },
+            { name: "time.sleep", snippet: "time.sleep(${1:seconds})", score: 1100, meta: "time" },
+            { name: "os", snippet: "os", score: 1200, meta: "module" },
+            { name: "os.path", snippet: "os.path", score: 1100, meta: "os" },
+            { name: "os.listdir", snippet: "os.listdir(${1:path})", score: 1100, meta: "os" },
+            { name: "os.getcwd", snippet: "os.getcwd()", score: 1100, meta: "os" },
+            { name: "json", snippet: "json", score: 1200, meta: "module" },
+            { name: "json.loads", snippet: "json.loads(${1:str})", score: 1100, meta: "json" },
+            { name: "json.dumps", snippet: "json.dumps(${1:obj})", score: 1100, meta: "json" },
+            { name: "re", snippet: "re", score: 1200, meta: "module" },
+            { name: "re.search", snippet: "re.search(r'${1:pattern}', ${2:string})", score: 1100, meta: "re" },
+            { name: "re.findall", snippet: "re.findall(r'${1:pattern}', ${2:string})", score: 1100, meta: "re" }
+        ];
+
+        const cppMethods = [
+            { name: "push_back", snippet: "push_back(${1:val})", score: 1200, meta: "vector/list" },
+            { name: "emplace_back", snippet: "emplace_back(${1:args})", score: 1200, meta: "vector/list" },
+            { name: "pop_back", snippet: "pop_back()", score: 1100, meta: "vector/list" },
+            { name: "push_front", snippet: "push_front(${1:val})", score: 1000, meta: "list/deque" },
+            { name: "pop_front", snippet: "pop_front()", score: 1000, meta: "list/deque" },
+            { name: "insert", snippet: "insert(${1:pos}, ${2:val})", score: 1100, meta: "container" },
+            { name: "erase", snippet: "erase(${1:pos})", score: 1100, meta: "container" },
+            { name: "clear", snippet: "clear()", score: 1100, meta: "container" },
+            { name: "resize", snippet: "resize(${1:count})", score: 1000, meta: "vector" },
+            { name: "reserve", snippet: "reserve(${1:size})", score: 1000, meta: "vector" },
+            { name: "at", snippet: "at(${1:index})", score: 1100, meta: "vector/map" },
+            { name: "front", snippet: "front()", score: 1100, meta: "container" },
+            { name: "back", snippet: "back()", score: 1100, meta: "container" },
+            { name: "begin", snippet: "begin()", score: 1200, meta: "iterator" },
+            { name: "end", snippet: "end()", score: 1200, meta: "iterator" },
+            { name: "rbegin", snippet: "rbegin()", score: 1000, meta: "iterator" },
+            { name: "rend", snippet: "rend()", score: 1000, meta: "iterator" },
+            { name: "cbegin", snippet: "cbegin()", score: 1000, meta: "iterator" },
+            { name: "cend", snippet: "cend()", score: 1000, meta: "iterator" },
+            { name: "empty", snippet: "empty()", score: 1200, meta: "check" },
+            { name: "size", snippet: "size()", score: 1200, meta: "check" },
+            { name: "max_size", snippet: "max_size()", score: 900, meta: "check" },
+            { name: "capacity", snippet: "capacity()", score: 1000, meta: "vector" },
+            { name: "shrink_to_fit", snippet: "shrink_to_fit()", score: 900, meta: "vector" },
+            { name: "data", snippet: "data()", score: 1000, meta: "pointer" },
+            { name: "swap", snippet: "swap(${1:other})", score: 1000, meta: "container" },
+            { name: "find", snippet: "find(${1:key})", score: 1100, meta: "map/set" },
+            { name: "count", snippet: "count(${1:key})", score: 1100, meta: "map/set" },
+            { name: "lower_bound", snippet: "lower_bound(${1:key})", score: 900, meta: "map/set" },
+            { name: "upper_bound", snippet: "upper_bound(${1:key})", score: 900, meta: "map/set" },
+            { name: "equal_range", snippet: "equal_range(${1:key})", score: 900, meta: "map/set" },
+            { name: "emplace", snippet: "emplace(${1:args})", score: 1000, meta: "map/set" },
+            { name: "length", snippet: "length()", score: 1200, meta: "string" },
+            { name: "c_str", snippet: "c_str()", score: 1200, meta: "string" },
+            { name: "substr", snippet: "substr(${1:pos}, ${2:len})", score: 1100, meta: "string" },
+            { name: "append", snippet: "append(${1:str})", score: 1000, meta: "string" },
+            { name: "compare", snippet: "compare(${1:str})", score: 900, meta: "string" },
+            { name: "replace", snippet: "replace(${1:pos}, ${2:len}, ${3:str})", score: 1000, meta: "string" },
+            { name: "find_first_of", snippet: "find_first_of(${1:str})", score: 900, meta: "string" },
+            { name: "find_last_of", snippet: "find_last_of(${1:str})", score: 900, meta: "string" },
+            { name: "top", snippet: "top()", score: 1100, meta: "stack/pq" },
+            { name: "push", snippet: "push(${1:val})", score: 1100, meta: "stack/queue" },
+            { name: "pop", snippet: "pop()", score: 1100, meta: "stack/queue" }
+        ];
+
+        const cppKeywords = [
+            { name: "if", snippet: "if (${1:condition}) {\n\t${2}\n}", score: 2000, meta: "control" },
+            { name: "else", snippet: "else {\n\t${1}\n}", score: 1900, meta: "control" },
+            { name: "for", snippet: "for (int ${1:i} = 0; ${1:i} < ${2:n}; ++${1:i}) {\n\t${3}\n}", score: 2000, meta: "control" },
+            { name: "while", snippet: "while (${1:condition}) {\n\t${2}\n}", score: 2000, meta: "control" },
+            { name: "do", snippet: "do {\n\t${1}\n} while (${2:condition});", score: 1800, meta: "control" },
+            { name: "switch", snippet: "switch (${1:var}) {\n\tcase ${2:val}:\n\t\t${3}\n\t\tbreak;\n\tdefault:\n\t\tbreak;\n}", score: 1900, meta: "control" },
+            { name: "case", snippet: "case ${1:val}:", score: 1800, meta: "control" },
+            { name: "break", snippet: "break;", score: 1800, meta: "control" },
+            { name: "continue", snippet: "continue;", score: 1800, meta: "control" },
+            { name: "return", snippet: "return ${1:val};", score: 2000, meta: "control" },
+            { name: "try", snippet: "try {\n\t${1}\n} catch (${2:const std::exception& e}) {\n\t${3}\n}", score: 1800, meta: "control" },
+            { name: "catch", snippet: "catch (${1:args}) {\n\t${2}\n}", score: 1800, meta: "control" },
+            { name: "throw", snippet: "throw ${1:err};", score: 1800, meta: "control" },
+            { name: "int", snippet: "int ", score: 1500, meta: "type" },
+            { name: "double", snippet: "double ", score: 1500, meta: "type" },
+            { name: "float", snippet: "float ", score: 1500, meta: "type" },
+            { name: "char", snippet: "char ", score: 1500, meta: "type" },
+            { name: "bool", snippet: "bool ", score: 1500, meta: "type" },
+            { name: "void", snippet: "void ", score: 1500, meta: "type" },
+            { name: "auto", snippet: "auto ", score: 1500, meta: "type" },
+            { name: "long", snippet: "long ", score: 1400, meta: "type" },
+            { name: "short", snippet: "short ", score: 1400, meta: "type" },
+            { name: "unsigned", snippet: "unsigned ", score: 1400, meta: "type" },
+            { name: "const", snippet: "const ", score: 1500, meta: "modifier" },
+            { name: "static", snippet: "static ", score: 1400, meta: "modifier" },
+            { name: "virtual", snippet: "virtual ", score: 1400, meta: "modifier" },
+            { name: "override", snippet: "override", score: 1400, meta: "modifier" },
+            { name: "final", snippet: "final", score: 1400, meta: "modifier" },
+            { name: "explicit", snippet: "explicit ", score: 1300, meta: "modifier" },
+            { name: "friend", snippet: "friend ", score: 1300, meta: "modifier" },
+            { name: "inline", snippet: "inline ", score: 1300, meta: "modifier" },
+            { name: "mutable", snippet: "mutable ", score: 1200, meta: "modifier" },
+            { name: "volatile", snippet: "volatile ", score: 1200, meta: "modifier" },
+            { name: "class", snippet: "class ${1:Name} {\npublic:\n\t${1:Name}();\n\t~${1:Name}();\n};", score: 1600, meta: "struct" },
+            { name: "struct", snippet: "struct ${1:Name} {\n\t${2}\n};", score: 1600, meta: "struct" },
+            { name: "enum", snippet: "enum ${1:Name} { ${2} };", score: 1500, meta: "struct" },
+            { name: "template", snippet: "template <typename ${1:T}>", score: 1600, meta: "template" },
+            { name: "typename", snippet: "typename ", score: 1500, meta: "template" },
+            { name: "namespace", snippet: "namespace ${1:Name} {\n\t${2}\n}", score: 1600, meta: "struct" },
+            { name: "using", snippet: "using namespace std;", score: 1500, meta: "keyword" },
+            { name: "new", snippet: "new ", score: 1500, meta: "mem" },
+            { name: "delete", snippet: "delete ", score: 1500, meta: "mem" },
+            { name: "true", snippet: "true", score: 1500, meta: "bool" },
+            { name: "false", snippet: "false", score: 1500, meta: "bool" },
+            { name: "nullptr", snippet: "nullptr", score: 1500, meta: "val" },
+            { name: "this", snippet: "this", score: 1500, meta: "val" },
+            { name: "operator", snippet: "operator", score: 1400, meta: "keyword" },
+            { name: "sizeof", snippet: "sizeof(${1:type})", score: 1400, meta: "keyword" },
+            { name: "include", snippet: "#include <${1:iostream}>", score: 2000, meta: "preproc" },
+            { name: "define", snippet: "#define ${1:MACRO} ${2:val}", score: 1800, meta: "preproc" },
+            { name: "ifdef", snippet: "#ifdef ${1:MACRO}", score: 1800, meta: "preproc" },
+            { name: "endif", snippet: "#endif", score: 1800, meta: "preproc" }
+        ];
+
+        const cppStdUtils = [
+            { name: "cout", stdSnippet: "std::cout << ${1} << std::endl;", shortSnippet: "cout << ${1} << endl;", type: "iostream" },
+            { name: "cin", stdSnippet: "std::cin >> ${1};", shortSnippet: "cin >> ${1};", type: "iostream" },
+            { name: "cerr", stdSnippet: "std::cerr << ${1} << std::endl;", shortSnippet: "cerr << ${1} << endl;", type: "iostream" },
+            { name: "endl", stdSnippet: "std::endl", shortSnippet: "endl", type: "iostream" },
+            { name: "vector", stdSnippet: "std::vector<${1:T}> ${2:v};", shortSnippet: "vector<${1:T}> ${2:v};", type: "std" },
+            { name: "string", stdSnippet: "std::string ${1:s}", shortSnippet: "string ${1:s}", type: "std" },
+            { name: "map", stdSnippet: "std::map<${1:K}, ${2:V}> ${3:m};", shortSnippet: "map<${1:K}, ${2:V}> ${3:m};", type: "std" },
+            { name: "set", stdSnippet: "std::set<${1:T}> ${2:s};", shortSnippet: "set<${1:T}> ${2:s};", type: "std" },
+            { name: "queue", stdSnippet: "std::queue<${1:T}> ${2:q};", shortSnippet: "queue<${1:T}> ${2:q};", type: "std" },
+            { name: "stack", stdSnippet: "std::stack<${1:T}> ${2:s};", shortSnippet: "stack<${1:T}> ${2:s};", type: "std" },
+            { name: "pair", stdSnippet: "std::pair<${1:T1}, ${2:T2}>", shortSnippet: "pair<${1:T1}, ${2:T2}>", type: "std" },
+            { name: "sort", stdSnippet: "std::sort(${1:begin}, ${2:end});", shortSnippet: "sort(${1:begin}, ${2:end});", type: "algo" },
+            { name: "find", stdSnippet: "std::find(${1:begin}, ${2:end}, ${3:val});", shortSnippet: "find(${1:begin}, ${2:end}, ${3:val});", type: "algo" },
+            { name: "max", stdSnippet: "std::max(${1:a}, ${2:b})", shortSnippet: "max(${1:a}, ${2:b})", type: "algo" },
+            { name: "min", stdSnippet: "std::min(${1:a}, ${2:b})", shortSnippet: "min(${1:a}, ${2:b})", type: "algo" },
+            { name: "reverse", stdSnippet: "std::reverse(${1:begin}, ${2:end});", shortSnippet: "reverse(${1:begin}, ${2:end});", type: "algo" }
+        ];
+
+        const editor = ace.edit("editor");
+        const SnippetManager = ace.require("ace/snippets").snippetManager;
+        const langTools = ace.require("ace/ext/language_tools");
+
+        let currentFilename = "script.py";
+
+        editor.setTheme("ace/theme/textmate");
+        editor.session.setMode("ace/mode/python");
+
+        editor.setOptions({
+            enableBasicAutocompletion: true,
+            enableLiveAutocompletion: true,
+            enableSnippets: true,
+            fontSize: "14px",
+            showPrintMargin: false,
+            displayIndentGuides: true,
+            highlightActiveLine: true,
+            wrap: true,
+            showGutter: true,
+            tabSize: 4,
+            useSoftTabs: true
+        });
+
+        const zenCompleter = {
+            getCompletions: function(editor, session, pos, prefix, callback) {
+                const token = session.getTokenAt(pos.row, pos.column);
+                if (token && (token.type.includes("comment") || token.type.includes("string"))) {
+                     return callback(null, []);
+                }
+
+                const line = session.getLine(pos.row);
+                const isDotContext = (line[pos.column - prefix.length - 1] === '.');
+                const currentMode = currentFilename.endsWith(".py") ? "python" : "cpp";
+                let rawCompletions = [];
+
+                if (currentMode === "python") {
+                    if (isDotContext) {
+                        rawCompletions = pythonMethods;
+                    } else {
+                        rawCompletions = pythonFunctions;
+                    }
+                } else if (currentMode === "cpp") {
+                    if (isDotContext) {
+                        rawCompletions = cppMethods;
+                    } else {
+                        const content = session.getValue();
+                        const hasUsingStd = content.includes("using namespace std;");
+
+                        const stdCompletions = cppStdUtils.map(item => {
+                            const useShort = hasUsingStd;
+                            return {
+                                name: item.name,
+                                snippet: useShort ? item.shortSnippet : item.stdSnippet,
+                                meta: useShort ? item.type : "std::" + item.type,
+                                score: 1000
+                            };
+                        });
+
+                        rawCompletions = [...stdCompletions, ...cppKeywords];
+                    }
+                }
+
+                const finalCompletions = rawCompletions.map(item => ({
+                    caption: item.name,
+                    value: item.name,
+                    snippet: item.snippet,
+                    meta: item.meta,
+                    score: item.score
+                }));
+
+                callback(null, finalCompletions);
+            }
+        };
+
+        editor.completers = [zenCompleter];
+
+        function updateFileInfo(name) {
+            currentFilename = name;
+            document.getElementById('file-info').textContent = name;
+            document.getElementById('filename-input').value = name;
+
+            let mode = "ace/mode/text";
+            if (name.endsWith('.cpp') || name.endsWith('.cc') || name.endsWith('.h')) {
+                mode = "c_cpp";
+            } else if (name.endsWith('.py')) {
+                mode = "python";
+            }
+
+            editor.session.setMode("ace/mode/" + mode);
+        }
+
+        function triggerFileOpen() {
+            document.getElementById('file-input').click();
+        }
+
+        function handleFileOpen(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                editor.setValue(e.target.result, -1);
+                updateFileInfo(file.name);
+                input.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function openSaveModal() {
+            document.getElementById('save-overlay').classList.add('active');
+            document.getElementById('filename-input').value = currentFilename;
+        }
+
+        function toggleSave() {
+            document.getElementById('save-overlay').classList.toggle('active');
+        }
+
+        function executeSave() {
+            const nameInput = document.getElementById('filename-input').value;
+            if (!nameInput) return;
+
+            currentFilename = nameInput;
+            updateFileInfo(currentFilename);
+
+            const content = editor.getValue();
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+
+            a.style.display = 'none';
+            a.href = url;
+            a.download = currentFilename;
+
+            document.body.appendChild(a);
+            a.click();
+
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toggleSave();
+        }
+
+        function insertTab() {
+            editor.insert("\t");
+            editor.focus();
+        }
+
+        function toggleSettings() {
+            document.getElementById('settings-overlay').classList.toggle('active');
+        }
+
+        function closeModal(e, id) {
+            if (e.target.id === id) {
+                document.getElementById(id).classList.remove('active');
+            }
+        }
+
+        function setTheme(themeType) {
+            const body = document.body;
+            const lightBtn = document.getElementById('theme-light');
+            const darkBtn = document.getElementById('theme-dark');
+
+            if (themeType === 'dark') {
+                body.setAttribute('data-theme', 'dark');
+                editor.setTheme("ace/theme/tomorrow_night");
+                lightBtn.classList.remove('active');
+                darkBtn.classList.add('active');
+            } else {
+                body.removeAttribute('data-theme');
+                editor.setTheme("ace/theme/textmate");
+                lightBtn.classList.add('active');
+                darkBtn.classList.remove('active');
+            }
+            localStorage.setItem('zen_theme', themeType);
+        }
+
+        function setFontSize(val) {
+            editor.setFontSize(val + "px");
+            document.getElementById('font-size-val').textContent = val + "px";
+            document.getElementById('font-range').value = val;
+            localStorage.setItem('zen_font_size', val);
+        }
+
+        window.onload = function() {
+            const savedTheme = localStorage.getItem('zen_theme') || 'light';
+            const savedSize = localStorage.getItem('zen_font_size') || '14';
+
+            setTheme(savedTheme);
+            setFontSize(savedSize);
+        };
+
+        window.addEventListener('resize', () => {
+            editor.resize();
+        });
+
+    </script>
+</body>
+</html>
