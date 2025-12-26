@@ -5,14 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ZenCode | Precision Editor</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 400;
+            src: url('assets/fonts/inter-v20-latin-regular.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 600;
+            src: url('assets/fonts/inter-v20-latin-600.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'Fira Code';
+            font-style: normal;
+            font-weight: 400;
+            src: url('assets/fonts/fira-code-v27-latin-regular.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'Fira Code';
+            font-style: normal;
+            font-weight: 500;
+            src: url('assets/fonts/fira-code-v27-latin-500.woff2') format('woff2');
+        }
+    </style>
 
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ext-language_tools.min.js"></script>
+    <script src="assets/js/lucide/lucide.min.js"></script>
+    <script src="assets/js/ace/ace.js"></script>
+    <script src="assets/js/ace/ext-language_tools.js"></script>
 
     <style>
         :root {
@@ -356,6 +378,9 @@
     </div>
 
     <script>
+        // تغییر ۳: تنظیم مسیر پایه برای Ace تا تم‌ها و مودها را پیدا کند
+        ace.config.set('basePath', 'assets/js/ace');
+
         lucide.createIcons();
 
         const pythonMethods = [

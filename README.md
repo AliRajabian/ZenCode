@@ -25,7 +25,7 @@ You need a modern web browser (Chrome, Firefox, Safari, Edge).
 
 1.  Clone the repository:
     ```bash
-    git clone [https://github.com/AliRajabian/ZenCode.git](https://github.com/AliRajabian/ZenCode.git)
+    git clone https://github.com/AliRajabian/ZenCode.git
     ```
 2.  Navigate to the project directory:
     ```bash
